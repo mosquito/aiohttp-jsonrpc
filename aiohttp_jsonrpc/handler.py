@@ -32,9 +32,7 @@ class JSONRPCView(View):
         else:
             raise HTTPBadRequest
 
-        results = yield from asyncio.gather(
-            *[self._handle(request) for request in requests],
-        )
+        results = yield from asyncio.gather(*[self._handle(request) for request in requests])
 
         if batch_mode:
             return self._make_response(results)
