@@ -9,6 +9,8 @@ def test_rpc_client(loop):
     test_client = None
     rpc_client = None
 
+    asyncio.set_event_loop(loop)
+
     @asyncio.coroutine
     def _create_from_app_factory(app_factory, *args, **kwargs):
         nonlocal test_client, rpc_client
