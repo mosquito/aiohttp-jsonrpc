@@ -15,6 +15,7 @@ class JSONRPCView(View):
 
     DUMPS = json.dumps
     LOADS = json.loads
+    PY2JSON = py2json
 
     @asyncio.coroutine
     def post(self, *args, **kwargs):
@@ -133,4 +134,4 @@ class JSONRPCView(View):
 
     @classmethod
     def _build_json(cls, data):
-        return cls.DUMPS(py2json(data), ensure_ascii=False)
+        return cls.DUMPS(cls.PY2JSON(data), ensure_ascii=False)
