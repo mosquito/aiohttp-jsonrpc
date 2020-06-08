@@ -4,13 +4,23 @@ import pytest
 from aiohttp import web
 from aiohttp_jsonrpc import handler
 from aiohttp_jsonrpc.client import batch
-from aiohttp_jsonrpc.exceptions import ApplicationError
-
+from aiohttp_jsonrpc.exceptions import ApplicationError, register_exception, ServerError
 
 pytest_plugins = (
     'aiohttp.pytest_plugin',
     'aiohttp_jsonrpc.pytest_plugin',
 )
+
+
+class RegisteredException(Exception):
+    code = -1111
+
+
+class UnregisteredException(Exception):
+    code = -2222
+
+
+register_exception(RegisteredException, RegisteredException.code)
 
 
 class JSONRPCMain(handler.JSONRPCView):
@@ -31,6 +41,12 @@ class JSONRPCMain(handler.JSONRPCView):
 
     def rpc_mirror(self, arg):
         return arg
+
+    def rpc_registered_exception(self):
+        raise RegisteredException("I am registered exception")
+
+    def rpc_unregistered_exception(self):
+        raise UnregisteredException("I am unregistered exception")
 
 
 def create_app(loop):
@@ -91,3 +107,16 @@ def test_7_batch(client):
     )
 
     assert results == list(range(10))
+
+
+@asyncio.coroutine
+def test_8_registered_exception(client):
+    with pytest.raises(RegisteredException):
+        yield from client.registered_exception()
+
+
+@asyncio.coroutine
+def test_9_unregistered_exception(client):
+    with pytest.raises(Exception) as exc_info:
+        yield from client.unregistered_exception()
+    assert getattr(exc_info.value, 'code', 0) == -2222

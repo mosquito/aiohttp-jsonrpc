@@ -108,10 +108,11 @@ def json2py_exception(code: int, fault: str, default_exc_class=JSONRPCError):
 
 @py2json.register(Exception)
 def _(value: Exception):
-    code, reason = __EXCEPTION_TYPES[Exception], " ".join(map(str, value.args))
+    code = int(getattr(value, "code", __EXCEPTION_TYPES[Exception]))
+    reason = " ".join(map(str, value.args))
 
     for klass in value.__class__.__mro__:
-        if klass in __EXCEPTION_TYPES:
+        if klass in __EXCEPTION_TYPES and klass != Exception:
             code = __EXCEPTION_TYPES[klass]
             break
 
