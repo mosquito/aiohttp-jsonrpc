@@ -125,6 +125,12 @@ class ServerProxy(object):
     def close(self):
         return self.client.close()
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
 
 def batch(server_proxy: ServerProxy, *methods):
     return server_proxy._batch_call(methods)
