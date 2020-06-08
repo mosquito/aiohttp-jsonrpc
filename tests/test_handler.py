@@ -4,7 +4,7 @@ import pytest
 from aiohttp import web
 from aiohttp_jsonrpc import handler
 from aiohttp_jsonrpc.client import batch
-from aiohttp_jsonrpc.exceptions import ApplicationError, register_exception, ServerError
+from aiohttp_jsonrpc.exceptions import ApplicationError, register_exception
 
 pytest_plugins = (
     'aiohttp.pytest_plugin',
