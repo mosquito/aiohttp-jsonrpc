@@ -2,6 +2,7 @@ import asyncio
 import aiohttp.client
 import logging
 import json
+import uuid
 from multidict import MultiDict
 
 from . import __version__, __pyversion__, exceptions
@@ -23,6 +24,7 @@ class Method:
         data = {
             "method": str(self.name),
             "jsonrpc": "2.0",
+            "id": str(uuid.uuid4())
         }
 
         if args:
