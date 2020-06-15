@@ -63,7 +63,7 @@ Client example
 .. code-block:: python
 
     import asyncio
-    from aiohttp_jsonrpc.client import ServerProxy, batch
+    from aiohttp_jsonrpc.client import ServerProxy
 
 
     loop = asyncio.get_event_loop()
@@ -77,8 +77,7 @@ Client example
         method = client['args']
         print(await method(1, 2, 3))
 
-        results = await batch(
-            client,
+        results = await client.batch(
             client['test'],
             client['test'].prepare(),
             client['args'].prepare(1, 2, 3),

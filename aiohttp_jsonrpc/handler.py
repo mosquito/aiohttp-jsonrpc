@@ -1,10 +1,11 @@
-# encoding: utf-8
+import asyncio
 import json
 import logging
-import asyncio
-from aiohttp.web import View, Response, HTTPBadRequest
+
+from aiohttp.web import HTTPBadRequest, Response, View
+
 from . import exceptions
-from .common import py2json
+from .common import awaitable, py2json
 
 
 log = logging.getLogger(__name__)
@@ -16,11 +17,10 @@ class JSONRPCView(View):
     DUMPS = json.dumps
     LOADS = json.loads
 
-    @asyncio.coroutine
-    def post(self, *args, **kwargs):
+    async def post(self):
         self._check_request()
 
-        body = yield from self.request.read()
+        body = await self.request.read()
         json_request = self._parse_body(body)
         batch_mode = False
 
@@ -32,21 +32,31 @@ class JSONRPCView(View):
         else:
             raise HTTPBadRequest
 
-        results = yield from asyncio.gather(*[self._handle(request) for request in requests])
+        results = await asyncio.gather(
+            *[self._handle(request) for request in requests]
+        )
 
         if batch_mode:
-            return self._make_response(results)
+            return self._make_response(list(filter(None, results)))
         else:
             return self._make_response(results[0])
 
     @classmethod
-    def _make_response(cls, json_response, status=200, reason=None):
+    def _make_response(cls, json_response, status: int = None, reason=None):
         log.debug("Sending response:\n%r", json_response)
+
+        if json_response is None:
+            return Response(
+                status=status or 204,
+                reason=reason,
+                body=b"",
+            )
+
         return Response(
-            status=status,
+            status=status or 200,
             reason=reason,
             body=cls._build_json(json_response),
-            headers={"Content-Type": "application/json; charset=utf-8"}
+            headers={"Content-Type": "application/json; charset=utf-8"},
         )
 
     def _parse_body(self, body):
@@ -56,29 +66,32 @@ class JSONRPCView(View):
             raise HTTPBadRequest
 
     def _lookup_method(self, method_name):
-        method = getattr(self, "{0}{1}".format(self.METHOD_PREFIX, method_name), None)
+        method = getattr(
+            self, "{0}{1}".format(self.METHOD_PREFIX, method_name), None
+        )
 
         if not callable(method):
             log.warning(
                 "Can't find method %s%s in %r",
                 self.METHOD_PREFIX,
                 method_name,
-                self.__class__.__name__
+                self.__class__.__name__,
             )
 
-            raise exceptions.ApplicationError('Method %r not found' % method_name)
+            raise exceptions.ApplicationError(
+                "Method %r not found" % method_name
+            )
         return method
 
     def _check_request(self):
-        if 'json' not in self.request.headers.get('Content-Type', ''):
+        if "json" not in self.request.headers.get("Content-Type", ""):
             raise HTTPBadRequest
 
-    @asyncio.coroutine
-    def _handle(self, json_request):
-        request_id = json_request.get('id')
+    async def _handle(self, json_request):
+        request_id = json_request.get("id")
 
         try:
-            method_name = json_request['method']
+            method_name = json_request["method"]
             method = self._lookup_method(method_name)
 
             log.info(
@@ -86,10 +99,10 @@ class JSONRPCView(View):
                 method_name,
                 method.__module__,
                 method.__class__.__name__,
-                method.__name__
+                method.__name__,
             )
 
-            params = json_request.get('params')
+            params = json_request.get("params")
 
             args = []
             kwargs = {}
@@ -99,7 +112,11 @@ class JSONRPCView(View):
             elif isinstance(params, dict):
                 kwargs = params
 
-            result = yield from asyncio.coroutine(method)(*args, **kwargs)
+            result = await awaitable(method)(*args, **kwargs)
+
+            if "id" not in json_request:
+                return None
+
             return self._format_success(result, request_id)
         except Exception as e:
             return self._format_error(e, request_id)
@@ -109,9 +126,9 @@ class JSONRPCView(View):
         data = {"jsonrpc": "2.0"}
 
         if result is not None:
-            data['result'] = result
+            data["result"] = result
         if request_id is not None:
-            data['id'] = request_id
+            data["id"] = request_id
 
         return data
 
@@ -123,7 +140,7 @@ class JSONRPCView(View):
         }
 
         if request_id is not None:
-            data['id'] = request_id
+            data["id"] = request_id
 
         return data
 

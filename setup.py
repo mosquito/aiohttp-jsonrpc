@@ -1,7 +1,7 @@
-#!/usr/bin/env python
-# encoding: utf-8
 from __future__ import absolute_import, print_function
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
+
 import aiohttp_jsonrpc as module
 
 
@@ -11,26 +11,29 @@ setup(
     author=module.__author__,
     license=module.__license__,
     description=module.description,
-    long_description=open('README.rst').read(),
+    long_description=open("README.rst").read(),
     platforms="all",
     classifiers=[
-        'Environment :: Console',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3 :: Only',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
+        "Environment :: Console",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ],
-
     include_package_data=True,
     zip_safe=False,
-    packages=find_packages(exclude=('tests',)),
+    packages=find_packages(exclude=("tests",)),
     install_requires=(
-        'aiohttp',
+        "aiohttp",
     ),
     extras_require={
-        'develop': [
-            'pytest',
-            'pytest-cov',
+        "develop": [
+            "pytest",
+            "pytest-cov",
+            "pytest-aiohttp",
         ],
-    }
+    },
 )
