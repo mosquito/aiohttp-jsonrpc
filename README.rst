@@ -1,8 +1,8 @@
 AIOHTTP JSON RPC
 ================
 
-.. image:: https://travis-ci.org/mosquito/aiohttp-jsonrpc.svg
-    :target: https://travis-ci.org/mosquito/aiohttp-jsonrpc
+.. image:: https://github.com/mosquito/aiohttp-jsonrpc/workflows/tox/badge.svg
+    :target: https://github.com/mosquito/aiohttp-jsonrpc/actions?query=branch%3Amaster
 
 .. image:: https://img.shields.io/pypi/v/aiohttp-jsonrpc.svg
     :target: https://pypi.python.org/pypi/aiohttp-jsonrpc/
@@ -46,6 +46,9 @@ Server example
         def rpc_exception(self):
             raise Exception("YEEEEEE!!!")
 
+        def rpc_test_notification(self):
+            print("Notification received")
+
 
     app = web.Application()
     app.router.add_route('*', '/', JSONRPCExample)
@@ -75,13 +78,20 @@ Client example
 
         # Or via __getitem__
         method = client['args']
+        notification = client.create_notification("test_notification")
         print(await method(1, 2, 3))
+
+        await notification()
 
         results = await client.batch(
             client['test'],
             client['test'].prepare(),
             client['args'].prepare(1, 2, 3),
             client['not_found'].prepare(1, 2, 3),
+            # notify with params
+            notification.prepare(),
+            # notification without params
+            notification,
         )
 
         print(results)
