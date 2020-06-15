@@ -1,16 +1,9 @@
-import asyncio
-
 import pytest
 from aiohttp import web
+
 from aiohttp_jsonrpc import handler
-from aiohttp_jsonrpc.client import batch
+from aiohttp_jsonrpc.client import ServerProxy, batch
 from aiohttp_jsonrpc.exceptions import ApplicationError
-
-
-pytest_plugins = (
-    'aiohttp.pytest_plugin',
-    'aiohttp_jsonrpc.pytest_plugin',
-)
 
 
 class JSONRPCMain(handler.JSONRPCView):
@@ -33,50 +26,44 @@ class JSONRPCMain(handler.JSONRPCView):
         return arg
 
 
-def create_app(loop):
-    app = web.Application(loop=loop)
-    app.router.add_route('*', '/', JSONRPCMain)
+def create_app():
+    app = web.Application()
+    app.router.add_route("*", "/", JSONRPCMain)
     return app
 
 
 @pytest.fixture
-def client(loop, test_rpc_client):
-    return loop.run_until_complete(test_rpc_client(create_app))
+async def client(loop, jsonrpc_test_client):
+    return await jsonrpc_test_client(create_app)
 
 
-@asyncio.coroutine
-def test_1_test(client):
-    result = yield from client.test()
+async def test_1_test(client: ServerProxy):
+    result = await client.test()
     assert result is None
 
 
-@asyncio.coroutine
-def test_2_args(client):
-    result = yield from client.args(1, 2, 3, 4, 5)
+async def test_2_args(client: ServerProxy):
+    result = await client.args(1, 2, 3, 4, 5)
     assert result == 5
 
 
-@asyncio.coroutine
-def test_3_kwargs(client):
-    result = yield from client.kwargs(foo=1, bar=2)
+async def test_3_kwargs(client: ServerProxy):
+    result = await client.kwargs(foo=1, bar=2)
     assert result == 2
 
 
-@asyncio.coroutine
-def test_5_exception(client):
+async def test_5_exception(client: ServerProxy):
     with pytest.raises(Exception):
-        yield from client.exception()
+        await client.exception()
 
 
-@asyncio.coroutine
-def test_6_unknown_method(client):
+async def test_6_unknown_method(client: ServerProxy):
     with pytest.raises(ApplicationError):
-        yield from client['unknown_method']()
+        await client["unknown_method"]()
 
 
-@asyncio.coroutine
-def test_7_batch(client):
-    results = yield from batch(
+async def test_7_batch(client: ServerProxy):
+    results = await batch(
         client,
         client.mirror.prepare(0),
         client.mirror.prepare(1),
@@ -91,3 +78,41 @@ def test_7_batch(client):
     )
 
     assert results == list(range(10))
+
+
+async def test_7_batch_method(client: ServerProxy):
+    results = await client(
+        client.mirror.prepare(0),
+        client.mirror.prepare(1),
+        client.mirror.prepare(2),
+        client.mirror.prepare(3),
+        client.mirror.prepare(4),
+        client.mirror.prepare(5),
+        client.mirror.prepare(6),
+        client.mirror.prepare(7),
+        client.mirror.prepare(8),
+        client.mirror.prepare(9),
+    )
+
+    assert results == list(range(10))
+
+
+async def test_8_notification(client: ServerProxy):
+    notification = client.create_notification("test")
+    await notification()
+
+
+async def test_9_batch_method_and_notifications(client: ServerProxy):
+    notification = client.create_notification("test")
+
+    results = await client(
+        client.mirror.prepare(0),
+        client.mirror.prepare(1),
+        notification,
+        client.mirror.prepare(2),
+        client.mirror.prepare(3),
+        client.test,
+        notification.prepare(),
+    )
+
+    assert results == [0, 1, None, 2, 3, None, None]
