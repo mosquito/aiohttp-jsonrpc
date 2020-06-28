@@ -5,11 +5,6 @@ from aiohttp_jsonrpc import handler
 from aiohttp_jsonrpc.client import ServerProxy, batch
 from aiohttp_jsonrpc.exceptions import ApplicationError, register_exception
 
-pytest_plugins = (
-    'aiohttp.pytest_plugin',
-    'aiohttp_jsonrpc.pytest_plugin',
-)
-
 
 class RegisteredException(Exception):
     code = -1111
@@ -123,14 +118,12 @@ async def test_9_batch_method_and_notifications(client: ServerProxy):
     assert results == [0, 1, None, 2, 3, None, None]
 
 
-@asyncio.coroutine
-def test_10_registered_exception(client):
+async def test_10_registered_exception(client):
     with pytest.raises(RegisteredException):
-        yield from client.registered_exception()
+        await client.registered_exception()
 
 
-@asyncio.coroutine
-def test_11_unregistered_exception(client):
+async def test_11_unregistered_exception(client):
     with pytest.raises(Exception) as exc_info:
-        yield from client.unregistered_exception()
+        await client.unregistered_exception()
     assert getattr(exc_info.value, 'code', 0) == -2222
