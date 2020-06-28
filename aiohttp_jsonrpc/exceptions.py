@@ -2,9 +2,9 @@ from .common import py2json
 
 
 __all__ = (
-    'JSONRPCError', 'ApplicationError', 'InvalidCharacterError',
-    'ParseError', 'ServerError', 'SystemError', 'TransportError',
-    'UnsupportedEncodingError',
+    "JSONRPCError", "ApplicationError", "InvalidCharacterError",
+    "ParseError", "ServerError", "SystemError", "TransportError",
+    "UnsupportedEncodingError",
 )
 
 
@@ -20,7 +20,7 @@ class JSONRPCError(Exception):
         return self.__class__.__name__
 
     def __repr__(self):
-        return '<[{0.code}] {0.name}({0.message})>'.format(self)
+        return "<[{0.code}] {0.name}({0.message})>".format(self)
 
 
 class ParseError(JSONRPCError):
@@ -90,7 +90,9 @@ def register_exception(exception_type: BaseException, code: int):
         raise ValueError("Exception with code %s already registered" % code)
 
     if exception_type in __EXCEPTION_TYPES:
-        raise ValueError("Exception type %r already registered" % exception_type)
+        raise ValueError(
+            "Exception type %r already registered" % exception_type
+        )
 
     __EXCEPTION_CODES[code] = exception_type
     __EXCEPTION_TYPES[exception_type] = code

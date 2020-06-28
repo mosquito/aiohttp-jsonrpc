@@ -1,7 +1,8 @@
+import asyncio
 import base64
 import logging
 from datetime import datetime
-from functools import singledispatch
+from functools import singledispatch, wraps
 from types import GeneratorType
 
 
@@ -45,9 +46,9 @@ def _(value: datetime):
 @py2json.register(Binary)
 def _(value):
     return {
-        'type': 'binary',
-        'encoding': 'base64',
-        'data': base64.b64encode(value)
+        "type": "binary",
+        "encoding": "base64",
+        "data": base64.b64encode(value),
     }
 
 
@@ -65,4 +66,26 @@ def _(x):
     return {str(key): py2json(value) for key, value in x.items()}
 
 
-__all__ = 'py2json',
+def awaitable(func):
+    # Avoid python 3.8+ warning
+    if asyncio.iscoroutinefunction(func):
+        return func
+
+    async def awaiter(obj):
+        return obj
+
+    @wraps(func)
+    def wrap(*args, **kwargs):
+        result = func(*args, **kwargs)
+
+        if hasattr(result, "__await__"):
+            return result
+        if asyncio.iscoroutine(result) or asyncio.isfuture(result):
+            return result
+
+        return awaiter(result)
+
+    return wrap
+
+
+__all__ = "py2json",
