@@ -17,6 +17,8 @@ class JSONRPCView(View):
     DUMPS = json.dumps
     LOADS = json.loads
 
+    __JSONRPC_EXCEPTIONS__ = {}
+
     async def post(self):
         self._check_request()
 
@@ -132,12 +134,17 @@ class JSONRPCView(View):
 
         return data
 
-    @staticmethod
-    def _format_error(exception: Exception, request_id):
+    def _format_error(self, exception: Exception, request_id):
         data = {
-            "jsonrpc": "2.0",
-            "error": exception,
+            "jsonrpc": "2.0"
         }
+        if exception.__class__ in self.__JSONRPC_EXCEPTIONS__:
+            data["error"] = {
+                "code": self.__JSONRPC_EXCEPTIONS__[exception.__class__],
+                "message": str(exception)
+            }
+        else:
+            data["error"] = exception
 
         if request_id is not None:
             data["id"] = request_id
