@@ -74,13 +74,16 @@ class ServerProxy(object):
         __pyversion__, __version__,
     )
 
+    __JSONRPC_EXCEPTIONS__ = {}
+
     def __init__(
             self, url: typing.Union[str, yarl.URL],
             client: ClientSessionType = None,
             loop: asyncio.AbstractEventLoop = None,
             headers: HeadersType = None,
             client_owner: bool = True,
-            loads=json.loads, dumps=json.dumps, **kwargs
+            loads=json.loads, dumps=json.dumps,
+            **kwargs
     ):
 
         self.headers = MultiDict(headers or {})
@@ -98,8 +101,7 @@ class ServerProxy(object):
         self.loads = loads
         self.dumps = dumps
 
-    @staticmethod
-    def _parse_response(response):
+    def _parse_response(self, response):
         log.debug("Server response: \n%r", response)
 
         if "error" in response:
@@ -108,11 +110,16 @@ class ServerProxy(object):
             if not isinstance(error, dict):
                 raise Exception
             else:
-                raise json2py_exception(
-                    error.get("code", exceptions.SystemError.code),
-                    error.get("message", "Unknown error"),
-                    default_exc_class=exceptions.ServerError,
-                )
+                code = int(error.get("code", exceptions.SystemError.code))
+                message = error.get("message", "Unknown error")
+                if code in self.__JSONRPC_EXCEPTIONS__:
+                    raise self.__JSONRPC_EXCEPTIONS__[code](message)
+                else:
+                    raise json2py_exception(
+                        code,
+                        message,
+                        default_exc_class=exceptions.ServerError,
+                    )
         return response.get("result")
 
     async def __remote_call(self, json_request):
