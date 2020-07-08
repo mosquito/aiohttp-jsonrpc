@@ -74,7 +74,7 @@ class ServerProxy(object):
         __pyversion__, __version__,
     )
 
-    __JSONRPC_EXCEPTIONS__ = {}
+    __JSONRPC_CODES__ = {}
 
     def __init__(
             self, url: typing.Union[str, yarl.URL],
@@ -112,8 +112,8 @@ class ServerProxy(object):
             else:
                 code = int(error.get("code", exceptions.SystemError.code))
                 message = error.get("message", "Unknown error")
-                if code in self.__JSONRPC_EXCEPTIONS__:
-                    raise self.__JSONRPC_EXCEPTIONS__[code](message)
+                if code in self.__JSONRPC_CODES__:
+                    raise self.__JSONRPC_CODES__[code](message)
                 else:
                     raise json2py_exception(
                         code,

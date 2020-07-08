@@ -24,7 +24,7 @@ class JSONRPCTestService(JSONRPCView):
 
 
 class CustomServerProxy(ServerProxy):
-    __JSONRPC_EXCEPTIONS__ = {
+    __JSONRPC_CODES__ = {
         CustomClientException.code: CustomClientException
     }
 
