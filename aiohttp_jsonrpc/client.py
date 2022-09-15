@@ -1,9 +1,8 @@
 import asyncio
 import json
 import logging
-import typing
 import uuid
-import warnings
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import aiohttp.client
 import aiohttp.test_utils
@@ -11,7 +10,7 @@ import yarl
 from multidict import CIMultiDict, MultiDict
 
 from . import __pyversion__, __version__, exceptions
-from .common import py2json
+from .common import JSONRPCBody, JSONRPCRequest, py2json
 from .exceptions import json2py_exception
 
 
@@ -26,40 +25,30 @@ class Method:
     def __call__(self, *args, **kwargs):
         return self.execute(self.prepare(*args, **kwargs))
 
-    def _create_request(self) -> dict:
-        return {
-            "method": str(self.name),
-            "jsonrpc": "2.0",
-            "id": str(uuid.uuid4()),
-        }
-
-    def prepare(self, *args, **kwargs):
-        data = self._create_request()
-
-        if args:
-            data["params"] = args
-
-        elif kwargs:
-            data["params"] = kwargs
-
-        return data
+    def prepare(self, *args, **kwargs) -> JSONRPCRequest:
+        return JSONRPCRequest(
+            id=str(uuid.uuid4()),
+            method=str(self.name),
+            jsonrpc="2.0",
+            params=args if args else kwargs,
+        )
 
 
 class Notification(Method):
-    def _create_request(self) -> dict:
-        return {
-            "method": str(self.name),
-            "jsonrpc": "2.0",
-        }
+    def _create_request(self) -> JSONRPCRequest:
+        return JSONRPCRequest(
+            jsonrpc="2.0",
+            method=str(self.name),
+        )
 
 
-HeadersType = typing.Union[
+HeadersType = Union[
     CIMultiDict,
-    typing.Dict[str, str],
-    typing.Iterable[typing.Tuple[str, str]],
+    Dict[str, str],
+    Iterable[Tuple[str, str]],
 ]
 
-ClientSessionType = typing.Union[
+ClientSessionType = Union[
     aiohttp.client.ClientSession,
     aiohttp.test_utils.TestClient,
 ]
@@ -75,16 +64,17 @@ class ServerProxy(object):
     )
 
     def __init__(
-            self, url: typing.Union[str, yarl.URL],
-            client: ClientSessionType = None,
-            loop: asyncio.AbstractEventLoop = None,
-            headers: HeadersType = None,
-            client_owner: bool = True,
-            loads=json.loads, dumps=json.dumps, **kwargs
+        self, url: Union[str, yarl.URL],
+        client: ClientSessionType = None,
+        loop: asyncio.AbstractEventLoop = None,
+        headers: HeadersType = None,
+        client_owner: bool = True,
+        loads=json.loads,
+        dumps=json.dumps,
+        **kwargs,
     ):
 
         self.headers = MultiDict(headers or {})
-
         self.headers.setdefault("Content-Type", "application/json")
         self.headers.setdefault("User-Agent", self.USER_AGENT)
 
@@ -115,13 +105,13 @@ class ServerProxy(object):
                 )
         return response.get("result")
 
-    async def __remote_call(self, json_request):
+    async def __remote_call(self, json_request: JSONRPCRequest) -> Any:
         request = py2json(json_request)
         response = await self.client.post(
             str(self.url),
             headers=await self.prepare_headers(self.headers),
             data=self.dumps(
-                await self.prepare_body(py2json(request))
+                await self.prepare_body(py2json(request)),
             ),
         )
 
@@ -139,11 +129,13 @@ class ServerProxy(object):
         return headers
 
     async def prepare_body(
-        self, body: typing.List[typing.Mapping[str, typing.Any]]
-    ) -> typing.List[typing.Mapping[str, typing.Any]]:
+        self, body: Union[JSONRPCRequest, JSONRPCBody],
+    ) -> JSONRPCBody:
         return body
 
-    async def __call__(self, *prepared_methods, return_exceptions=True):
+    async def __call__(
+        self, *prepared_methods: JSONRPCRequest, return_exceptions=True
+    ) -> Any:
         request = []
         request_indecies = []
 
@@ -161,14 +153,16 @@ class ServerProxy(object):
             str(self.url),
             headers=await self.prepare_headers(self.headers),
             data=self.dumps(
-                await self.prepare_body(py2json(request))
+                await self.prepare_body(py2json(request)),
             ),
         )
 
         response.raise_for_status()
 
-        responses = {}
-        data = self.loads((await response.read()).decode())
+        responses: Dict[Any, Any] = {}
+        data: List[JSONRPCRequest] = self.loads(
+            (await response.read()).decode(),
+        )
 
         for response in data:
             req_id = response.get("id")
@@ -192,13 +186,13 @@ class ServerProxy(object):
             result.append(responses[req_id])
         return result
 
-    def __getattr__(self, method_name) -> Method:
+    def __getattr__(self, method_name: str) -> Method:
         return self[method_name]
 
-    def __getitem__(self, method_name) -> Method:
+    def __getitem__(self, method_name: str) -> Method:
         return Method(method_name, self.__remote_call)
 
-    def create_notification(self, method):
+    def create_notification(self, method: str):
         return Notification(method, self.__remote_call)
 
     async def close(self, force=False):
@@ -206,19 +200,10 @@ class ServerProxy(object):
             return
         return await self.client.close()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "ServerProxy":
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.client.closed:
             return
-
         await self.close()
-
-
-def batch(server_proxy: ServerProxy, *methods: dict):
-    warnings.warn(
-        "Use ServerProxy.__call__ method instead", DeprecationWarning,
-    )
-
-    return server_proxy(*methods)

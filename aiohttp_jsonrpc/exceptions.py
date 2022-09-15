@@ -91,7 +91,7 @@ def register_exception(exception_type: BaseException, code: int):
 
     if exception_type in __EXCEPTION_TYPES:
         raise ValueError(
-            "Exception type %r already registered" % exception_type
+            "Exception type %r already registered" % exception_type,
         )
 
     __EXCEPTION_CODES[code] = exception_type

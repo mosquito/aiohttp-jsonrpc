@@ -5,7 +5,7 @@ from aiohttp.web import HTTPUnauthorized
 from multidict import MultiDict
 
 from aiohttp_jsonrpc import handler
-from aiohttp_jsonrpc.client import ServerProxy, batch
+from aiohttp_jsonrpc.client import ServerProxy
 from aiohttp_jsonrpc.exceptions import ApplicationError
 
 
@@ -129,11 +129,11 @@ async def test_with_auth(jsonrpc_test_client):
     class AuthorizedServerProxy(ServerProxy):
         async def prepare_headers(self, headers: MultiDict) -> MultiDict:
             headers = MultiDict(headers)
-            headers['X-Secret'] = "top secret"
+            headers["X-Secret"] = "top secret"
             return headers
 
     client: ServerProxy = await jsonrpc_test_client(
-        create_app, url="/restricted", proxy_factory=AuthorizedServerProxy
+        create_app, url="/restricted", proxy_factory=AuthorizedServerProxy,
     )
 
     assert await client.mirror("Foo") == "Foo"

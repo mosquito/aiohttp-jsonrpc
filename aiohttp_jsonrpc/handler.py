@@ -1,11 +1,14 @@
 import asyncio
 import json
 import logging
+from typing import Union
 
 from aiohttp.web import HTTPBadRequest, Response, View
 
 from . import exceptions
-from .common import awaitable, py2json
+from .common import (
+    JSONRPCBody, JSONRPCRequest, JSONRPCResponse, awaitable, py2json,
+)
 
 
 log = logging.getLogger(__name__)
@@ -20,8 +23,8 @@ class JSONRPCView(View):
     async def post(self):
         await self.authorize()
 
-        body = await self.request.read()
-        json_request = self._parse_body(body)
+        body: bytes = await self.request.read()
+        json_request: JSONRPCBody = self._parse_body(body)
         batch_mode = False
 
         if isinstance(json_request, dict):
@@ -59,7 +62,7 @@ class JSONRPCView(View):
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
 
-    def _parse_body(self, body):
+    def _parse_body(self, body) -> JSONRPCBody:
         try:
             return self._parse_json(body)
         except ValueError:
@@ -67,7 +70,7 @@ class JSONRPCView(View):
 
     def _lookup_method(self, method_name):
         method = getattr(
-            self, "{0}{1}".format(self.METHOD_PREFIX, method_name), None
+            self, "{0}{1}".format(self.METHOD_PREFIX, method_name), None,
         )
 
         if not callable(method):
@@ -79,7 +82,7 @@ class JSONRPCView(View):
             )
 
             raise exceptions.ApplicationError(
-                "Method %r not found" % method_name
+                "Method %r not found" % method_name,
             )
         return method
 
@@ -87,7 +90,7 @@ class JSONRPCView(View):
         if "json" not in self.request.headers.get("Content-Type", ""):
             raise HTTPBadRequest
 
-    async def _handle(self, json_request):
+    async def _handle(self, json_request: JSONRPCRequest):
         request_id = json_request.get("id")
 
         try:
@@ -122,27 +125,22 @@ class JSONRPCView(View):
             return self._format_error(e, request_id)
 
     @staticmethod
-    def _format_success(result, request_id):
-        data = {"jsonrpc": "2.0"}
-
-        if result is not None:
-            data["result"] = result
-        if request_id is not None:
-            data["id"] = request_id
-
-        return data
+    def _format_success(result, request_id: Union[str, int]):
+        return JSONRPCResponse(
+            jsonrpc="2.0",
+            id=request_id,
+            result=result,
+        )
 
     @staticmethod
-    def _format_error(exception: Exception, request_id):
-        data = {
-            "jsonrpc": "2.0",
-            "error": exception,
-        }
-
-        if request_id is not None:
-            data["id"] = request_id
-
-        return data
+    def _format_error(
+        exception: Exception, request_id: Union[str, int],
+    ) -> JSONRPCResponse:
+        return JSONRPCResponse(
+            jsonrpc="2.0",
+            id=request_id,
+            error=py2json(exception),
+        )
 
     @classmethod
     def _parse_json(cls, json_string):
