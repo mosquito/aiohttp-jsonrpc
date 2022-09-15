@@ -29,7 +29,9 @@ def jsonrpc_test_client(add_cleanup):
     test_client = None
     rpc_client = None
 
-    async def _create_from_app_factory(app_factory, *args, **kwargs):
+    async def _create_from_app_factory(
+        app_factory, url="", proxy_factory=ServerProxy, *args, **kwargs
+    ):
         nonlocal test_client, rpc_client
 
         app = app_factory(*args, **kwargs)
@@ -37,7 +39,7 @@ def jsonrpc_test_client(add_cleanup):
 
         await test_client.start_server()
 
-        rpc_client = ServerProxy("", client=test_client)
+        rpc_client = proxy_factory(url, client=test_client)
 
         add_cleanup(rpc_client.close)
         add_cleanup(test_client.close)

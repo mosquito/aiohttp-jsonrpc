@@ -119,8 +119,10 @@ class ServerProxy(object):
         request = py2json(json_request)
         response = await self.client.post(
             str(self.url),
-            headers=self.headers,
-            data=self.dumps(request),
+            headers=await self.prepare_headers(self.headers),
+            data=self.dumps(
+                await self.prepare_body(py2json(request))
+            ),
         )
 
         response.raise_for_status()
