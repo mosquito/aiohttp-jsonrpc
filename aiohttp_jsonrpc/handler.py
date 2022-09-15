@@ -18,7 +18,7 @@ class JSONRPCView(View):
     LOADS = json.loads
 
     async def post(self):
-        self._check_request()
+        await self.authorize()
 
         body = await self.request.read()
         json_request = self._parse_body(body)
@@ -83,7 +83,7 @@ class JSONRPCView(View):
             )
         return method
 
-    def _check_request(self):
+    async def authorize(self):
         if "json" not in self.request.headers.get("Content-Type", ""):
             raise HTTPBadRequest
 
