@@ -133,6 +133,14 @@ class ServerProxy(object):
             self.loads((await response.read()).decode()),
         )
 
+    async def prepare_headers(self, headers: MultiDict) -> MultiDict:
+        return headers
+
+    async def prepare_body(
+        self, body: typing.List[typing.Mapping[str, typing.Any]]
+    ) -> typing.List[typing.Mapping[str, typing.Any]]:
+        return body
+
     async def __call__(self, *prepared_methods, return_exceptions=True):
         request = []
         request_indecies = []
@@ -149,8 +157,10 @@ class ServerProxy(object):
 
         response = await self.client.post(
             str(self.url),
-            headers=self.headers,
-            data=self.dumps(py2json(request)),
+            headers=await self.prepare_headers(self.headers),
+            data=self.dumps(
+                await self.prepare_body(py2json(request))
+            ),
         )
 
         response.raise_for_status()
