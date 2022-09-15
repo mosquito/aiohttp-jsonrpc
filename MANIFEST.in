@@ -1,1 +1,2 @@
 include README.rst
+include aiohttp_jsonrpc/py.typed

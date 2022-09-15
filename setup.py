@@ -17,17 +17,18 @@ setup(
         "Environment :: Console",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     include_package_data=True,
     zip_safe=False,
     packages=find_packages(exclude=("tests",)),
+    package_data={"aiohttp_jsonrpc": ["py.typed"]},
     install_requires=(
         "aiohttp",
+        "typing-extensions; python_version<'3.8'"
     ),
     extras_require={
         "develop": [

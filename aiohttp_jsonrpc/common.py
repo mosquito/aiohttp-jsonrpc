@@ -1,14 +1,41 @@
 import asyncio
 import base64
 import logging
+import typing
 from datetime import datetime
 from functools import singledispatch, wraps
 from types import GeneratorType
 
 
-NoneType = type(None)
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict
+
 
 log = logging.getLogger(__name__)
+
+
+class JSONRPCRequest(TypedDict, total=False):
+    jsonrpc: str
+    id: typing.Union[int, str, None]
+    method: str
+    params: typing.Union[
+        typing.Sequence[typing.Any], typing.Mapping[str, typing.Any],
+    ]
+
+
+class JSONRPCError(TypedDict, total=False):
+    code: int
+    message: str
+    data: typing.Any
+
+
+class JSONRPCResponse(TypedDict, total=False):
+    jsonrpc: str
+    id: typing.Union[int, str, None]
+    result: typing.Any
+    error: JSONRPCError
 
 
 class Binary(bytes):
@@ -19,9 +46,11 @@ class Binary(bytes):
 
 @singledispatch
 def py2json(value):
-    raise TypeError(("Can't serialise type: {0}."
-                    " Add type {0} via decorator "
-                     "@py2json.register({0}) ").format(type(value)))
+    raise TypeError((
+        "Can't serialise type: {0}."
+        " Add type {0} via decorator "
+        "@py2json.register({0})"
+    ).format(type(value)))
 
 
 @py2json.register(bytes)
@@ -33,7 +62,7 @@ def _(value):
 @py2json.register(float)
 @py2json.register(int)
 @py2json.register(bool)
-@py2json.register(NoneType)
+@py2json.register(type(None))
 def _(value):
     return value
 
@@ -66,6 +95,14 @@ def _(x):
     return {str(key): py2json(value) for key, value in x.items()}
 
 
+@py2json.register(BaseException)
+def _(e: BaseException) -> JSONRPCError:
+    return JSONRPCError(
+        message=str(e),
+        data=py2json(getattr(e, "args", None)),
+    )
+
+
 def awaitable(func):
     # Avoid python 3.8+ warning
     if asyncio.iscoroutinefunction(func):
@@ -88,4 +125,14 @@ def awaitable(func):
     return wrap
 
 
-__all__ = "py2json",
+JSONRPCBatchRequest = typing.List[JSONRPCRequest]
+JSONRPCBody = typing.Union[JSONRPCRequest, JSONRPCBatchRequest]
+
+
+__all__ = (
+    "JSONRPCBatchRequest",
+    "JSONRPCError",
+    "JSONRPCRequest",
+    "JSONRPCResponse",
+    "py2json",
+)
